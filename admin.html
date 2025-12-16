@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GES Admin Dashboard</title>
+    <link rel="stylesheet" href="admin-styles.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-logo">
+                <h1>🎵 GES Admin</h1>
+                <p>Gurbachan Electronics & Sons</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" class="form-input" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="Enter password" required>
+                </div>
+                <div id="loginError" class="login-error"></div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="admin-dashboard">
+        <div class="dashboard-container">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <div class="header-title">
+                    <h1>📁 Catalog Manager</h1>
+                    <p>Manage your product categories and inventory</p>
+                </div>
+                <div class="header-actions">
+                    <button id="regenerateBtn" class="btn btn-success">
+                        🔄 Regenerate Website
+                    </button>
+                    <button id="logoutBtn" class="btn btn-secondary">
+                        🚪 Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📁</div>
+                    <div class="stat-info">
+                        <h3 id="totalCategories">0</h3>
+                        <p>Categories</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-info">
+                        <h3 id="totalProducts">0</h3>
+                        <p>Products</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🖼️</div>
+                    <div class="stat-info">
+                        <h3 id="totalImages">0</h3>
+                        <p>Images</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info">
+                        <h3>100%</h3>
+                        <p>Active</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories View -->
+            <div id="categoriesView" class="content-section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <h2>All Categories</h2>
+                        <div class="breadcrumb">
+                            <span>📁 Categories</span>
+                        </div>
+                    </div>
+                    <button id="addCategoryBtn" class="btn btn-primary">
+                        ➕ Add Category
+                    </button>
+                </div>
+                <div id="categoriesGrid" class="categories-grid"></div>
+            </div>
+
+            <!-- Products View -->
+            <div id="productsView" class="content-section" style="display: none;">
+                <div class="section-header">
+                    <div class="section-title">
+                        <h2 id="selectedCategoryName">Products</h2>
+                        <div class="breadcrumb">
+                            <span>📁 Categories</span>
+                            <span>→</span>
+                            <span id="categoryBreadcrumb">Products</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <button id="backToCategoriesBtn" class="btn btn-secondary">
+                            ← Back
+                        </button>
+                        <button id="addProductBtn" class="btn btn-primary">
+                            ➕ Add Product
+                        </button>
+                    </div>
+                </div>
+                <div id="productsGrid" class="products-grid"></div>
+            </div>
+
+            <!-- Images View -->
+            <div id="imagesView" class="content-section" style="display: none;">
+                <div class="section-header">
+                    <div class="section-title">
+                        <h2 id="selectedProductName">Images</h2>
+                        <div class="breadcrumb">
+                            <span>📁 Categories</span>
+                            <span>→</span>
+                            <span id="categoryBreadcrumb2">Category</span>
+                            <span>→</span>
+                            <span id="productBreadcrumb">Product</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <button id="backToProductsBtn" class="btn btn-secondary">
+                            ← Back
+                        </button>
+                        <button id="uploadImagesBtn" class="btn btn-primary">
+                            ⬆️ Upload Images
+                        </button>
+                    </div>
+                </div>
+                <div id="imagesGrid" class="images-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modalOverlay" class="modal-overlay"></div>
+
+    <!-- Add Category Modal -->
+    <div id="addCategoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Add New Category</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Category Name</label>
+                    <input type="text" id="newCategoryName" class="form-input" placeholder="e.g., dual_15_top">
+                    <small style="color: var(--gray); margin-top: 8px; display: block;">Use lowercase with underscores (no spaces)</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                <button id="saveCategoryBtn" class="btn btn-primary">Create Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Add New Product</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="newProductName" class="form-input" placeholder="e.g., martin_12">
+                    <small style="color: var(--gray); margin-top: 8px; display: block;">Use lowercase with underscores (no spaces)</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                <button id="saveProductBtn" class="btn btn-primary">Create Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Images Modal -->
+    <div id="uploadImagesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⬆️ Upload Images</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="uploadArea" class="upload-area">
+                    <div class="upload-icon">📁</div>
+                    <h4>Drop images here or click to browse</h4>
+                    <p>Supports: JPG, PNG, GIF (Max 10MB each)</p>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
+                <div id="uploadPreview" class="upload-preview"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                <button id="uploadBtn" class="btn btn-primary" disabled>Upload Images</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Category Modal -->
+    <div id="deleteCategoryModal" class="modal modal-danger">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Delete Category</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="warning-box">
+                    <div class="warning-icon">🚨</div>
+                    <h3>DANGER: This action cannot be undone!</h3>
+                    <p>You are about to delete the category:</p>
+                    <p class="category-to-delete"></p>
+                    <p><strong>This will permanently delete:</strong></p>
+                    <ul>
+                        <li>All products in this category</li>
+                        <li>All images in all products</li>
+                        <li>The entire category folder</li>
+                    </ul>
+                    <p class="warning-text">⚠️ <strong>This action is IRREVERSIBLE!</strong></p>
+                </div>
+                <div class="confirmation-input">
+                    <label>Type <strong>DELETE</strong> to confirm:</label>
+                    <input type="text" id="deleteConfirmInput" class="form-input" placeholder="Type DELETE">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                <button id="confirmDeleteCategoryBtn" class="btn btn-danger" disabled>Delete Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script src="admin-script.js"></script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Generated files
+products_data.json
+products_raw.js
+script_template_backup.js
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+temp_uploads/
+
+# Build artifacts
+dist/
+build/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Session files
+sessions/
+
+# Coverage directory
+coverage/
+.nyc_output
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+GES*catalouge*.zip
+
+# Sensitive information (if any)
+config/local.js
+secrets.json
+credentials.json
+
+# OS generated files
+*.swp
+.AppleDouble
+.LSOverride

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct FormSubmit Test</title>
+    <style>
+        body { font-family: Arial; padding: 50px; max-width: 500px; margin: 0 auto; }
+        input, textarea { width: 100%; padding: 10px; margin: 10px 0; }
+        button { padding: 15px 30px; background: #3b82f6; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Direct FormSubmit Test</h1>
+    <p>Testing: memexnft@gmail.com</p>
+    
+    <form action="https://formsubmit.co/memexnft@gmail.com" method="POST">
+        <input type="text" name="name" placeholder="Your Name" required><br>
+        <input type="email" name="email" placeholder="Your Email" required><br>
+        <input type="tel" name="phone" placeholder="Your Phone" required><br>
+        <textarea name="message" placeholder="Message" rows="4"></textarea><br>
+        
+        <input type="hidden" name="_subject" value="Test from GES Website">
+        <input type="hidden" name="_captcha" value="false">
+        
+        <button type="submit">TEST SUBMIT</button>
+    </form>
+    
+    <p style="margin-top: 30px; color: #666;">
+        After clicking submit:<br>
+        1. You'll be redirected to FormSubmit<br>
+        2. Check SPAM folder at memexnft@gmail.com for verification email<br>
+        3. Click verification link<br>
+        4. Test again
+    </p>
+</body>
+</html>
