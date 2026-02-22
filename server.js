@@ -11,6 +11,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy (important for Render/Heroku behind load balancer)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -22,9 +25,12 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Auto-enable in production
+        secure: process.env.NODE_ENV === 'production', // Auto-enable in production (HTTPS)
+        httpOnly: true, // Prevent XSS attacks
+        sameSite: 'lax', // CSRF protection, works with Render
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+    },
+    name: 'ges-admin-session' // Custom session name
 }));
 
 // Admin credentials from environment variables
@@ -96,7 +102,19 @@ app.post('/api/admin/login', async (req, res) => {
     if (username === ADMIN_USERNAME && bcrypt.compareSync(password, ADMIN_PASSWORD_HASH)) {
         req.session.isAuthenticated = true;
         req.session.username = username;
-        res.json({ success: true, message: 'Login successful' });
+        
+        // Save session explicitly to ensure cookie is set (important for Render)
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ error: 'Failed to create session' });
+            }
+            res.json({ 
+                success: true, 
+                message: 'Login successful',
+                authenticated: true
+            });
+        });
     } else {
         res.status(401).json({ error: 'Invalid credentials' });
     }

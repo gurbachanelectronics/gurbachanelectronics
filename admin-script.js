@@ -129,10 +129,25 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         
         if (response.ok) {
             errorDiv.style.display = 'none';
-            isAuthenticated = true;
-            showDashboard();
-            loadCategories();
-            startAuthCheckInterval();
+            
+            // Verify session is actually set before proceeding
+            // Small delay to ensure cookie is set
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Double-check authentication status
+            const authCheck = await checkAuthStatus();
+            if (authCheck) {
+                isAuthenticated = true;
+                showDashboard();
+                loadCategories();
+                startAuthCheckInterval();
+            } else {
+                // Session not set properly, show error
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '⚠️ Login successful but session not set. Please try again.';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Login';
+            }
         } else {
             const data = await response.json();
             errorDiv.style.display = 'block';
