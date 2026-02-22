@@ -335,32 +335,74 @@ app.delete('/api/admin/products', isAuthenticated, async (req, res) => {
 // Regenerate website data
 app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
     try {
-        // Run the Python script to regenerate products
         const { exec } = require('child_process');
         const util = require('util');
         const execPromise = util.promisify(exec);
         
-        // Regenerate products data
-        await execPromise('python3 generate_products.py', { cwd: __dirname });
+        // Try Python3 first, fallback to python
+        let pythonCommand = 'python3';
+        try {
+            await execPromise('python3 --version', { cwd: __dirname });
+        } catch (e) {
+            try {
+                await execPromise('python --version', { cwd: __dirname });
+                pythonCommand = 'python';
+            } catch (e2) {
+                throw new Error('Python not found. Please ensure Python 3 is installed.');
+            }
+        }
+        
+        // Run the Python script to regenerate products
+        console.log(`Running ${pythonCommand} generate_products.py...`);
+        const { stdout, stderr } = await execPromise(`${pythonCommand} generate_products.py`, { 
+            cwd: __dirname,
+            maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large outputs
+        });
+        
+        if (stderr && !stderr.includes('DeprecationWarning')) {
+            console.warn('Python script warnings:', stderr);
+        }
         
         // Read the generated products data
-        const productsData = await fs.readFile(path.join(__dirname, 'products_data.json'), 'utf8');
+        const productsDataPath = path.join(__dirname, 'products_data.json');
+        const productsData = await fs.readFile(productsDataPath, 'utf8');
         const products = JSON.parse(productsData);
         
         // Update script.js with new products
-        const scriptTemplate = await fs.readFile(path.join(__dirname, 'script_template.js'), 'utf8');
+        const scriptTemplatePath = path.join(__dirname, 'script_template.js');
+        const scriptTemplate = await fs.readFile(scriptTemplatePath, 'utf8');
         const newScript = `// ===== Complete Product Data - ${products.length} Products =====\nconst products = ${JSON.stringify(products, null, 4)};\n\n` + scriptTemplate;
         
-        await fs.writeFile(path.join(__dirname, 'script.js'), newScript);
+        const scriptPath = path.join(__dirname, 'script.js');
+        await fs.writeFile(scriptPath, newScript);
+        
+        // On Render, files are ephemeral - warn user if needed
+        const isRender = process.env.RENDER || process.env.RENDER_SERVICE_ID;
+        
+        // Security: No automatic Git operations
+        // Users must manually commit and push changes
+        // This ensures full control over what gets pushed to the repository
+        
+        const warning = isRender 
+            ? ' ⚠️ On Render, file changes are temporary and will be lost on restart. The site will work until next deployment.' 
+            : '';
         
         res.json({ 
             success: true, 
-            message: 'Website regenerated successfully',
+            message: `Website regenerated successfully!${warning}`,
             productCount: products.length,
-            imageCount: products.reduce((sum, p) => sum + p.images.length, 0)
+            imageCount: products.reduce((sum, p) => sum + p.images.length, 0),
+            isEphemeral: !!isRender,
+            note: isRender 
+                ? 'Changes persist until next deployment. To make permanent, commit to Git manually.' 
+                : 'To make changes permanent, commit script.js and products_data.json to Git manually.'
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Regenerate error:', error);
+        res.status(500).json({ 
+            error: error.message,
+            details: 'Make sure Python 3 is installed and generate_products.py exists'
+        });
     }
 });
 

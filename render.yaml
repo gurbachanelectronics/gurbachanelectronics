@@ -8,7 +8,8 @@ services:
     buildCommand: |
       npm install
       # Python is needed for regenerate endpoint
-      # Render includes Python by default, but ensure it's available
+      # Check if Python is available (Render includes it by default)
+      python3 --version || python --version || echo "Python check skipped"
     startCommand: npm start
     envVars:
       - key: NODE_ENV

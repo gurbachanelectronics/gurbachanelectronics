@@ -2,22 +2,94 @@
 let currentCategory = null;
 let currentProduct = null;
 let selectedFiles = [];
+let isAuthenticated = false;
+let authCheckInterval = null;
+
+// Authentication state management
+async function checkAuthStatus() {
+    try {
+        const response = await fetch('/api/admin/check-auth', {
+            credentials: 'include' // Important for cookies
+        });
+        
+        if (!response.ok) {
+            throw new Error('Auth check failed');
+        }
+        
+        const data = await response.json();
+        return data.authenticated === true;
+    } catch (error) {
+        console.error('Auth check error:', error);
+        return false;
+    }
+}
+
+// Global fetch wrapper to handle 401 errors
+async function authenticatedFetch(url, options = {}) {
+    if (!isAuthenticated) {
+        throw new Error('Not authenticated');
+    }
+    
+    const response = await fetch(url, {
+        ...options,
+        credentials: 'include' // Important for session cookies
+    });
+    
+    // Handle 401 Unauthorized globally
+    if (response.status === 401) {
+        console.warn('Session expired, logging out...');
+        isAuthenticated = false;
+        showLogin();
+        showNotification('Session expired. Please login again.', 'error');
+        throw new Error('Unauthorized');
+    }
+    
+    return response;
+}
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', async () => {
     // Setup modal handlers first
     setupModalHandlers();
     
-    const response = await fetch('/api/admin/check-auth');
-    const data = await response.json();
+    // Check authentication status
+    isAuthenticated = await checkAuthStatus();
     
-    if (data.authenticated) {
+    if (isAuthenticated) {
         showDashboard();
         loadCategories();
+        // Start periodic auth checks (every 2 minutes)
+        startAuthCheckInterval();
     } else {
         showLogin();
     }
 });
+
+// Periodic authentication check
+function startAuthCheckInterval() {
+    if (authCheckInterval) {
+        clearInterval(authCheckInterval);
+    }
+    
+    authCheckInterval = setInterval(async () => {
+        const stillAuthenticated = await checkAuthStatus();
+        if (!stillAuthenticated && isAuthenticated) {
+            // Session expired
+            isAuthenticated = false;
+            showLogin();
+            showNotification('Session expired. Please login again.', 'error');
+        } else {
+            isAuthenticated = stillAuthenticated;
+        }
+    }, 120000); // Check every 2 minutes
+}
+
+function stopAuthCheckInterval() {
+    if (authCheckInterval) {
+        clearInterval(authCheckInterval);
+        authCheckInterval = null;
+    }
+}
 
 // Show/Hide screens
 function showLogin() {
@@ -51,13 +123,16 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         const response = await fetch('/api/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password }),
+            credentials: 'include' // Important for session cookies
         });
         
         if (response.ok) {
             errorDiv.style.display = 'none';
+            isAuthenticated = true;
             showDashboard();
             loadCategories();
+            startAuthCheckInterval();
         } else {
             const data = await response.json();
             errorDiv.style.display = 'block';
@@ -81,15 +156,30 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/admin/logout', { method: 'POST' });
-    showLogin();
+    try {
+        await fetch('/api/admin/logout', { 
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+    } finally {
+        isAuthenticated = false;
+        stopAuthCheckInterval();
+        showLogin();
+    }
 });
 
 // Load Categories
 async function loadCategories() {
+    if (!isAuthenticated) {
+        showLogin();
+        return;
+    }
+    
     showLoading();
     try {
-        const response = await fetch('/api/admin/categories');
+        const response = await authenticatedFetch('/api/admin/categories');
         const categories = await response.json();
         
         const grid = document.getElementById('categoriesGrid');
@@ -104,7 +194,7 @@ async function loadCategories() {
             
             // Fetch products to count images
             try {
-                const productsRes = await fetch(`/api/admin/categories/${category.name}/products`);
+                const productsRes = await authenticatedFetch(`/api/admin/categories/${category.name}/products`);
                 const products = await productsRes.json();
                 products.forEach(product => {
                     totalImages += product.imageCount;
@@ -152,11 +242,16 @@ async function loadCategories() {
 
 // Load Products
 async function loadProducts(categoryName) {
+    if (!isAuthenticated) {
+        showLogin();
+        return;
+    }
+    
     currentCategory = categoryName;
     showLoading();
     
     try {
-        const response = await fetch(`/api/admin/categories/${categoryName}/products`);
+        const response = await authenticatedFetch(`/api/admin/categories/${categoryName}/products`);
         const products = await response.json();
         
         document.getElementById('categoriesView').style.display = 'none';
@@ -204,12 +299,17 @@ async function loadProducts(categoryName) {
 
 // Load Images
 async function loadImages(categoryName, productName) {
+    if (!isAuthenticated) {
+        showLogin();
+        return;
+    }
+    
     currentCategory = categoryName;
     currentProduct = productName;
     showLoading();
     
     try {
-        const response = await fetch(`/api/admin/categories/${categoryName}/products`);
+        const response = await authenticatedFetch(`/api/admin/categories/${categoryName}/products`);
         const products = await response.json();
         const product = products.find(p => p.name === productName);
         
@@ -273,7 +373,7 @@ document.getElementById('saveCategoryBtn').addEventListener('click', async () =>
     
     showLoading();
     try {
-        const response = await fetch('/api/admin/categories', {
+        const response = await authenticatedFetch('/api/admin/categories', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ categoryName })
@@ -306,7 +406,7 @@ document.getElementById('saveProductBtn').addEventListener('click', async () => 
     
     showLoading();
     try {
-        const response = await fetch('/api/admin/products', {
+        const response = await authenticatedFetch('/api/admin/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ category: currentCategory, productName })
@@ -367,7 +467,7 @@ document.getElementById('uploadBtn').addEventListener('click', async () => {
     
     showLoading();
     try {
-        const response = await fetch('/api/admin/upload', {
+        const response = await authenticatedFetch('/api/admin/upload', {
             method: 'POST',
             body: formData
         });
@@ -428,7 +528,7 @@ document.getElementById('confirmDeleteCategoryBtn').addEventListener('click', as
     
     showLoading();
     try {
-        const response = await fetch('/api/admin/categories', {
+        const response = await authenticatedFetch('/api/admin/categories', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ categoryName: categoryToDelete })
@@ -456,7 +556,7 @@ async function deleteProduct(category, productName) {
     
     showLoading();
     try {
-        const response = await fetch('/api/admin/products', {
+        const response = await authenticatedFetch('/api/admin/products', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ category, productName })
@@ -478,7 +578,7 @@ async function deleteImage(imagePath) {
     
     showLoading();
     try {
-        const response = await fetch('/api/admin/images', {
+        const response = await authenticatedFetch('/api/admin/images', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imagePath })
@@ -504,7 +604,7 @@ async function regenerateWebsite() {
     
     showLoading();
     try {
-        const response = await fetch('/api/admin/regenerate', {
+        const response = await authenticatedFetch('/api/admin/regenerate', {
             method: 'POST'
         });
         
