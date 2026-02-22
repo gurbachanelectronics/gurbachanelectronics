@@ -7,7 +7,7 @@ name: Keep Render App Alive
 on:
   schedule:
     # Run every 10 minutes (cron format: minute hour day month day-of-week)
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:
