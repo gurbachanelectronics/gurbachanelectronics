@@ -1,14 +1,15 @@
 name: Keep Render App Alive
 
-# This workflow runs every 10 minutes to ping your Render app
+# This workflow runs every 5 minutes to ping your Render app
 # This prevents the 15-minute inactivity spin-down
-# Render spins down after 15 minutes of inactivity, so we ping every 10 minutes
+# Render spins down after 15 minutes of inactivity, so we ping every 5 minutes for safety
 
 on:
   schedule:
-    # Run every 10 minutes (cron format: minute hour day month day-of-week)
+    # Run every 5 minutes (cron format: minute hour day month day-of-week)
     # Note: GitHub Actions uses UTC time and can delay by up to 15 minutes
-    - cron: '*/10 * * * *'
+    # Running every 5 minutes ensures app stays awake even with delays
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
   push:
     branches:
@@ -37,7 +38,7 @@ jobs:
           
           if [ "$response" = "200" ] || [ "$response" = "301" ] || [ "$response" = "302" ]; then
             echo "✅ Success! App is awake (HTTP $response)"
-            echo "🕐 Next ping in 10 minutes"
+            echo "🕐 Next ping in 5 minutes"
           else
             echo "⚠️ Warning: Got HTTP $response"
             echo "💡 App might be spinning up (this is normal on first ping)"
@@ -50,5 +51,5 @@ jobs:
         if: always()
         run: |
           echo "📊 Keep-alive workflow completed"
-          echo "🔄 This workflow runs automatically every 10 minutes"
+          echo "🔄 This workflow runs automatically every 5 minutes"
           echo "💡 Your Render app will stay awake 24/7!"
