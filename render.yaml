@@ -1,0 +1,21 @@
+# Render.com Configuration
+# This file helps Render deploy your app correctly
+
+services:
+  - type: web
+    name: ges-professional-audio
+    env: node
+    buildCommand: |
+      npm install
+      # Python is needed for regenerate endpoint
+      # Render includes Python by default, but ensure it's available
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # ⚠️ IMPORTANT: Add these in Render dashboard → Environment:
+      # - ADMIN_USERNAME (your admin username)
+      # - ADMIN_PASSWORD (your secure password)
+      # - SESSION_SECRET (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")

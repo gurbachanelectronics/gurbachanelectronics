@@ -1,0 +1,48 @@
+name: Keep Render App Alive
+
+# This workflow runs every 10 minutes to ping your Render app
+# This prevents the 15-minute inactivity spin-down
+# Render spins down after 15 minutes of inactivity, so we ping every 10 minutes
+
+on:
+  schedule:
+    # Run every 10 minutes (cron format: minute hour day month day-of-week)
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Ping Render App
+        run: |
+          echo "🔄 Keep-Alive Ping Started at $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "📍 Pinging Render app..."
+          
+          # ⚠️ IMPORTANT: Replace this URL with your actual Render app URL
+          # Get your URL from Render dashboard: https://dashboard.render.com
+          # Format: https://your-app-name.onrender.com
+          RENDER_URL="https://gurbachanelectronics.onrender.com"
+          
+          # Ping the app
+          response=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$RENDER_URL" || echo "000")
+          
+          if [ "$response" = "200" ] || [ "$response" = "301" ] || [ "$response" = "302" ]; then
+            echo "✅ Success! App is awake (HTTP $response)"
+            echo "🕐 Next ping in 10 minutes"
+          else
+            echo "⚠️ Warning: Got HTTP $response"
+            echo "💡 App might be spinning up (this is normal on first ping)"
+            # Don't fail the workflow - Render might be waking up
+          fi
+          
+          echo "✅ Keep-alive ping completed at $(date '+%Y-%m-%d %H:%M:%S')"
+        
+      - name: Ping Status
+        if: always()
+        run: |
+          echo "📊 Keep-alive workflow completed"
+          echo "🔄 This workflow runs automatically every 10 minutes"
+          echo "💡 Your Render app will stay awake 24/7!"
