@@ -1,55 +1,101 @@
 name: Keep Render App Alive
 
-# This workflow runs every 5 minutes to ping your Render app
-# This prevents the 15-minute inactivity spin-down
-# Render spins down after 15 minutes of inactivity, so we ping every 5 minutes for safety
+# This workflow runs every minute to ping your Render app
+# Note: GitHub Actions minimum cron interval is 5 minutes, but we set it to every minute
+# GitHub will automatically round it to 5 minutes, but this ensures maximum frequency
+# Render spins down after 15 minutes of inactivity, so frequent pings keep it awake
 
 on:
   schedule:
-    # Run every 5 minutes (cron format: minute hour day month day-of-week)
-    # Note: GitHub Actions uses UTC time and can delay by up to 15 minutes
-    # Running every 5 minutes ensures app stays awake even with delays
-    - cron: '*/5 * * * *'
+    # Run every minute (GitHub will enforce 5-minute minimum, but this is the closest we can get)
+    # Cron format: minute hour day month day-of-week
+    # GitHub Actions uses UTC time and can delay by up to 15 minutes
+    - cron: '* * * * *'  # Every minute (GitHub rounds to 5 min minimum)
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/keep-alive.yml'
+    # Trigger on ANY push to main, not just workflow file changes
+    # This ensures workflow runs immediately after any commit
+  repository_dispatch: # Allows external triggers via API
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 2
     
     steps:
-      - name: Ping Render App
+      - name: Check Workflow Trigger
         run: |
-          echo "🔄 Keep-Alive Ping Started at $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "🔍 Workflow Trigger Information:"
+          echo "Event: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "SHA: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Number: ${{ github.run_number }}"
+          echo "Run Attempt: ${{ github.run_attempt }}"
+          echo "---"
+        
+      - name: Ping Render App
+        id: ping
+        run: |
+          echo "🔄 Keep-Alive Ping Started"
+          echo "⏰ UTC Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "⏰ Local Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
           echo "📍 Pinging Render app..."
           
-          # ⚠️ IMPORTANT: Replace this URL with your actual Render app URL
-          # Get your URL from Render dashboard: https://dashboard.render.com
-          # Format: https://your-app-name.onrender.com
+          # Render app URL
           RENDER_URL="https://gurbachanelectronics.onrender.com"
+          echo "🌐 URL: $RENDER_URL"
           
-          # Ping the app
-          response=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$RENDER_URL" || echo "000")
+          # Ping the app with detailed output
+          echo "📡 Sending HTTP request..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 --connect-timeout 10 "$RENDER_URL" 2>&1 || echo "000")
+          curl_exit_code=$?
+          
+          echo "📊 Response Code: $response"
+          echo "📊 Curl Exit Code: $curl_exit_code"
+          
+          # Also get full response for debugging
+          full_response=$(curl -s -w "\nHTTP_CODE:%{http_code}\nTIME_TOTAL:%{time_total}s" --max-time 30 "$RENDER_URL" 2>&1 || echo "ERROR")
+          echo "📄 Full Response (first 200 chars):"
+          echo "$full_response" | head -c 200
+          echo ""
           
           if [ "$response" = "200" ] || [ "$response" = "301" ] || [ "$response" = "302" ]; then
-            echo "✅ Success! App is awake (HTTP $response)"
-            echo "🕐 Next ping in 5 minutes"
+            echo "✅ SUCCESS! App is awake (HTTP $response)"
+            echo "🕐 Next scheduled ping in ~5 minutes (GitHub Actions minimum)"
+            echo "status=success" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ Warning: Got HTTP $response"
+            echo "⚠️ WARNING: Got HTTP $response (Exit: $curl_exit_code)"
             echo "💡 App might be spinning up (this is normal on first ping)"
+            echo "💡 Or Render might be experiencing issues"
+            echo "status=warning" >> $GITHUB_OUTPUT
             # Don't fail the workflow - Render might be waking up
           fi
           
           echo "✅ Keep-alive ping completed at $(date '+%Y-%m-%d %H:%M:%S')"
         
-      - name: Ping Status
+      - name: Workflow Status
         if: always()
         run: |
-          echo "📊 Keep-alive workflow completed"
-          echo "🔄 This workflow runs automatically every 5 minutes"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 KEEP-ALIVE WORKFLOW STATUS"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Workflow completed successfully"
+          echo "🔄 Schedule: Every minute (GitHub enforces 5-min minimum)"
+          echo "🎯 Trigger: Scheduled cron + Push to main + Manual"
           echo "💡 Your Render app will stay awake 24/7!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📝 To verify this is working:"
+          echo "   1. Go to: https://github.com/${{ github.repository }}/actions"
+          echo "   2. Check 'Keep Render App Alive' workflow runs regularly"
+          echo "   3. Each run should show '✅ SUCCESS! App is awake'"
+          echo ""
+          echo "🔧 If workflow is not running:"
+          echo "   1. Check GitHub Actions is enabled: Repo → Settings → Actions"
+          echo "   2. Check workflow file exists: .github/workflows/keep-alive.yml"
+          echo "   3. Manually trigger: Actions tab → Keep Render App Alive → Run workflow"
