@@ -379,23 +379,80 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
         // On Render, files are ephemeral - warn user if needed
         const isRender = process.env.RENDER || process.env.RENDER_SERVICE_ID;
         
-        // Security: No automatic Git operations
-        // Users must manually commit and push changes
-        // This ensures full control over what gets pushed to the repository
+        // Auto-commit and push to GitHub if enabled
+        let gitPushed = false;
+        let gitError = null;
         
-        const warning = isRender 
-            ? ' ⚠️ On Render, file changes are temporary and will be lost on restart. The site will work until next deployment.' 
+        if (process.env.GIT_AUTO_PUSH === 'true') {
+            try {
+                // Configure Git if needed
+                const gitUser = process.env.GIT_USER_NAME || 'GES Bot';
+                const gitEmail = process.env.GIT_USER_EMAIL || 'ges-bot@noreply.com';
+                
+                // Set Git config (non-blocking if already set)
+                try {
+                    await execPromise(`git config user.name "${gitUser}"`, { cwd: __dirname });
+                    await execPromise(`git config user.email "${gitEmail}"`, { cwd: __dirname });
+                } catch (e) {
+                    // Config might already be set, that's okay
+                }
+                
+                // Check if there are changes
+                const { stdout: gitStatus } = await execPromise('git status --porcelain', { cwd: __dirname });
+                
+                if (gitStatus.includes('script.js') || gitStatus.includes('products_data.json')) {
+                    // Add only the specific files
+                    await execPromise('git add script.js products_data.json', { cwd: __dirname });
+                    
+                    // Commit
+                    const commitMessage = `Regenerated: ${products.length} products, ${products.reduce((sum, p) => sum + p.images.length, 0)} images`;
+                    await execPromise(`git commit -m "${commitMessage}"`, { cwd: __dirname });
+                    
+                    // Push to GitHub
+                    // Use HTTPS with token if GIT_TOKEN is set, otherwise use SSH
+                    if (process.env.GIT_TOKEN) {
+                        // Use token for authentication
+                        const repoUrl = process.env.GIT_REPO_URL || 'https://github.com/gurbachanelectronics/gurbachanelectronics.git';
+                        const repoUrlWithToken = repoUrl.replace('https://', `https://${process.env.GIT_TOKEN}@`);
+                        await execPromise(`git push ${repoUrlWithToken} main`, { cwd: __dirname });
+                    } else {
+                        // Try SSH or default push
+                        await execPromise('git push origin main', { cwd: __dirname });
+                    }
+                    
+                    gitPushed = true;
+                    console.log('✅ Changes committed and pushed to GitHub');
+                } else {
+                    console.log('ℹ️ No changes to commit');
+                }
+            } catch (gitError) {
+                console.error('Git push error:', gitError.message);
+                gitError = gitError.message;
+                // Don't fail the request, just log the error
+            }
+        }
+        
+        const warning = isRender && !gitPushed
+            ? ' ⚠️ On Render, file changes are temporary and will be lost on restart. Enable GIT_AUTO_PUSH to make permanent.' 
             : '';
+        
+        const successMessage = gitPushed 
+            ? 'Website regenerated and pushed to GitHub!'
+            : `Website regenerated successfully!${warning}`;
         
         res.json({ 
             success: true, 
-            message: `Website regenerated successfully!${warning}`,
+            message: successMessage,
             productCount: products.length,
             imageCount: products.reduce((sum, p) => sum + p.images.length, 0),
-            isEphemeral: !!isRender,
-            note: isRender 
-                ? 'Changes persist until next deployment. To make permanent, commit to Git manually.' 
-                : 'To make changes permanent, commit script.js and products_data.json to Git manually.'
+            isEphemeral: !!isRender && !gitPushed,
+            gitPushed: gitPushed,
+            gitError: gitError || null,
+            note: gitPushed 
+                ? 'Changes have been committed and pushed to GitHub. Render will auto-deploy.'
+                : (isRender 
+                    ? 'To enable auto-push, set GIT_AUTO_PUSH=true and GIT_TOKEN in Render environment variables.'
+                    : 'To enable auto-push, set GIT_AUTO_PUSH=true in environment variables.')
         });
     } catch (error) {
         console.error('Regenerate error:', error);
