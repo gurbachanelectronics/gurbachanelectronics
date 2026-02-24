@@ -998,7 +998,7 @@ const products = [
             "High Quality"
         ],
         "images": [
-            "catalouge/products/test/ss/IMG-1771912367848-304.png"
+            "catalouge/products/test/ss/IMG-1771912611697-114.png"
         ]
     },
     {
