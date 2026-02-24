@@ -40,7 +40,7 @@ pids
 *.pid.lock
 
 # Generated files
-products_data.json
+# products_data.json - REMOVED: This file should be tracked in Git for deployment
 products_raw.js
 script_template_backup.js
 

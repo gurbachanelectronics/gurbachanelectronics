@@ -422,13 +422,56 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
                 const { stdout: gitStatus } = await execPromise('git status --porcelain', { cwd: __dirname });
                 console.log('📊 Git status:', gitStatus || '(no changes)');
                 
-                if (gitStatus.includes('script.js') || gitStatus.includes('products_data.json')) {
+                // Check for changes in script.js, products_data.json, or catalog images
+                const hasScriptChanges = gitStatus.includes('script.js');
+                const hasDataChanges = gitStatus.includes('products_data.json');
+                const hasImageChanges = gitStatus.includes('catalouge/products/');
+                
+                if (hasScriptChanges || hasDataChanges || hasImageChanges) {
                     console.log('📦 Staging files...');
-                    // Add only the specific files
-                    await execPromise('git add script.js products_data.json', { cwd: __dirname });
+                    const filesToAdd = [];
+                    
+                    // Add script.js if changed
+                    if (hasScriptChanges) {
+                        filesToAdd.push('script.js');
+                    }
+                    
+                    // Add products_data.json if changed
+                    if (hasDataChanges) {
+                        filesToAdd.push('products_data.json');
+                    }
+                    
+                    // Add catalog images if changed
+                    if (hasImageChanges) {
+                        filesToAdd.push('catalouge/products/');
+                    }
+                    
+                    // Stage all files
+                    try {
+                        for (const file of filesToAdd) {
+                            try {
+                                await execPromise(`git add "${file}"`, { cwd: __dirname });
+                                console.log(`✅ Staged: ${file}`);
+                            } catch (e) {
+                                // If products_data.json is ignored, force add it
+                                if (file === 'products_data.json' && (e.message.includes('ignored') || e.message.includes('.gitignore'))) {
+                                    console.log('⚠️ products_data.json is ignored, forcing add...');
+                                    await execPromise('git add -f products_data.json', { cwd: __dirname });
+                                    console.log('✅ Force staged: products_data.json');
+                                } else {
+                                    throw e;
+                                }
+                            }
+                        }
+                    } catch (addError) {
+                        throw new Error(`Failed to stage files: ${addError.message}`);
+                    }
                     
                     // Commit
-                    const commitMessage = `Regenerated: ${products.length} products, ${products.reduce((sum, p) => sum + p.images.length, 0)} images`;
+                    let commitMessage = `Regenerated: ${products.length} products, ${products.reduce((sum, p) => sum + p.images.length, 0)} images`;
+                    if (hasImageChanges) {
+                        commitMessage += ' (includes image updates)';
+                    }
                     console.log(`💾 Committing: ${commitMessage}`);
                     await execPromise(`git commit -m "${commitMessage}"`, { cwd: __dirname });
                     
