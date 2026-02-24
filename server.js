@@ -417,63 +417,122 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
                     console.log('ℹ️ Git config already set or failed:', e.message);
                 }
                 
-                // Check if there are changes
-                console.log('🔍 Checking for changes...');
-                const { stdout: gitStatus } = await execPromise('git status --porcelain', { cwd: __dirname });
-                console.log('📊 Git status:', gitStatus || '(no changes)');
+                // Always add the files we just generated (script.js and products_data.json)
+                // Also check for any new/changed images
+                console.log('📦 Staging regenerated files...');
+                const filesToAdd = [];
+                let hasImageChanges = false;
                 
-                // Check for changes in script.js, products_data.json, or catalog images
-                const hasScriptChanges = gitStatus.includes('script.js');
-                const hasDataChanges = gitStatus.includes('products_data.json');
-                const hasImageChanges = gitStatus.includes('catalouge/products/');
+                // Always add script.js and products_data.json (we just generated them)
+                filesToAdd.push('script.js');
+                filesToAdd.push('products_data.json');
                 
-                if (hasScriptChanges || hasDataChanges || hasImageChanges) {
-                    console.log('📦 Staging files...');
-                    const filesToAdd = [];
-                    
-                    // Add script.js if changed
-                    if (hasScriptChanges) {
-                        filesToAdd.push('script.js');
-                    }
-                    
-                    // Add products_data.json if changed
-                    if (hasDataChanges) {
-                        filesToAdd.push('products_data.json');
-                    }
-                    
-                    // Add catalog images if changed
-                    if (hasImageChanges) {
+                // Always check for and add images in catalouge/products/
+                // Check if directory exists and has files
+                const catalogPath = path.join(__dirname, 'catalouge', 'products');
+                try {
+                    const catalogExists = fsSync.existsSync(catalogPath);
+                    if (catalogExists) {
+                        // Check for any changes (modified, new, deleted) in catalouge/products/
+                        let gitStatus = '';
+                        let untrackedFiles = '';
+                        
+                        try {
+                            const { stdout: status } = await execPromise('git status --porcelain catalouge/products/', { cwd: __dirname });
+                            gitStatus = status || '';
+                        } catch (e) {
+                            // No changes or error - that's okay
+                        }
+                        
+                        try {
+                            const { stdout: untracked } = await execPromise('git ls-files --others --exclude-standard catalouge/products/', { cwd: __dirname });
+                            untrackedFiles = untracked || '';
+                        } catch (e) {
+                            // No untracked files - that's okay
+                        }
+                        
+                        // Always add the directory to ensure all images are included
+                        // This catches new images that might not be detected by git status
                         filesToAdd.push('catalouge/products/');
+                        hasImageChanges = true;
+                        
+                        if (gitStatus.trim() || untrackedFiles.trim()) {
+                            console.log('📸 Detected image changes');
+                            if (gitStatus.trim()) {
+                                const changedCount = gitStatus.trim().split('\n').filter(l => l.trim()).length;
+                                console.log(`   Modified/tracked: ${changedCount} files`);
+                            }
+                            if (untrackedFiles.trim()) {
+                                const untrackedCount = untrackedFiles.trim().split('\n').filter(f => f.trim()).length;
+                                console.log(`   Untracked: ${untrackedCount} files`);
+                            }
+                        } else {
+                            console.log('📸 Adding catalouge/products/ (checking for any new images)');
+                        }
+                    } else {
+                        console.log('ℹ️ catalouge/products/ directory does not exist');
                     }
-                    
-                    // Stage all files
-                    try {
-                        for (const file of filesToAdd) {
-                            try {
-                                await execPromise(`git add "${file}"`, { cwd: __dirname });
-                                console.log(`✅ Staged: ${file}`);
-                            } catch (e) {
-                                // If products_data.json is ignored, force add it
-                                if (file === 'products_data.json' && (e.message.includes('ignored') || e.message.includes('.gitignore'))) {
-                                    console.log('⚠️ products_data.json is ignored, forcing add...');
-                                    await execPromise('git add -f products_data.json', { cwd: __dirname });
-                                    console.log('✅ Force staged: products_data.json');
-                                } else {
-                                    throw e;
-                                }
+                } catch (e) {
+                    console.log('⚠️ Error checking catalouge/products/:', e.message);
+                    // Still try to add it - might work
+                    filesToAdd.push('catalouge/products/');
+                    hasImageChanges = true;
+                }
+                
+                // Stage all files
+                try {
+                    for (const file of filesToAdd) {
+                        try {
+                            await execPromise(`git add "${file}"`, { cwd: __dirname });
+                            console.log(`✅ Staged: ${file}`);
+                        } catch (e) {
+                            // If products_data.json is ignored, force add it
+                            if (file === 'products_data.json' && (e.message.includes('ignored') || e.message.includes('.gitignore'))) {
+                                console.log('⚠️ products_data.json is ignored, forcing add...');
+                                await execPromise('git add -f products_data.json', { cwd: __dirname });
+                                console.log('✅ Force staged: products_data.json');
+                            } else {
+                                throw e;
                             }
                         }
-                    } catch (addError) {
-                        throw new Error(`Failed to stage files: ${addError.message}`);
                     }
-                    
-                    // Commit
+                } catch (addError) {
+                    throw new Error(`Failed to stage files: ${addError.message}`);
+                }
+                
+                // Check if there are actually changes to commit
+                let hasStagedChanges = false;
+                try {
+                    // This will throw (non-zero exit) if there ARE changes, which is what we want
+                    await execPromise('git diff --cached --quiet', { cwd: __dirname });
+                    // If we get here, exit code was 0, meaning NO changes
+                    console.log('ℹ️ No staged changes detected');
+                } catch (diffError) {
+                    // Non-zero exit means there ARE changes - perfect!
+                    hasStagedChanges = true;
+                    console.log('✅ Staged changes detected, proceeding with commit');
+                }
+                
+                // Only commit if there are actual changes
+                if (hasStagedChanges) {
                     let commitMessage = `Regenerated: ${products.length} products, ${products.reduce((sum, p) => sum + p.images.length, 0)} images`;
                     if (hasImageChanges) {
                         commitMessage += ' (includes image updates)';
                     }
                     console.log(`💾 Committing: ${commitMessage}`);
-                    await execPromise(`git commit -m "${commitMessage}"`, { cwd: __dirname });
+                    
+                    try {
+                        await execPromise(`git commit -m "${commitMessage}"`, { cwd: __dirname });
+                        console.log('✅ Commit successful');
+                    } catch (commitError) {
+                        // This shouldn't happen if we checked, but handle it anyway
+                        throw commitError;
+                    }
+                } else {
+                    console.log('ℹ️ No changes to commit (files are identical to last commit)');
+                    gitError = 'No changes detected: Generated files are identical to the last commit. This is normal if you regenerate without making changes.';
+                    throw new Error('NO_CHANGES');
+                }
                     
                     // Push to GitHub
                     console.log('🚀 Pushing to GitHub...');
@@ -495,25 +554,28 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
                     
                     gitPushed = true;
                     console.log('✅ Changes committed and pushed to GitHub successfully!');
-                } else {
-                    console.log('ℹ️ No changes detected in script.js or products_data.json');
-                    gitError = 'No changes detected to commit';
-                }
             } catch (gitErr) {
-                const errorMessage = gitErr.message || gitErr.toString();
-                const errorStdout = gitErr.stdout || '';
-                const errorStderr = gitErr.stderr || '';
-                
-                console.error('❌ Git push error:', errorMessage);
-                if (errorStdout) console.error('📤 Git stdout:', errorStdout);
-                if (errorStderr) console.error('📤 Git stderr:', errorStderr);
-                
-                // Create detailed error message
-                gitError = `Git error: ${errorMessage}`;
-                if (errorStderr) {
-                    gitError += `\nDetails: ${errorStderr.substring(0, 200)}`;
+                // Handle "no changes" error gracefully
+                if (gitErr.message === 'NO_CHANGES') {
+                    // This is expected if files are identical - not really an error
+                    console.log('ℹ️ Files are up to date, nothing to commit');
+                    gitError = 'No changes detected: Generated files are identical to the last commit. This is normal if you regenerate without making changes.';
+                } else {
+                    const errorMessage = gitErr.message || gitErr.toString();
+                    const errorStdout = gitErr.stdout || '';
+                    const errorStderr = gitErr.stderr || '';
+                    
+                    console.error('❌ Git push error:', errorMessage);
+                    if (errorStdout) console.error('📤 Git stdout:', errorStdout);
+                    if (errorStderr) console.error('📤 Git stderr:', errorStderr);
+                    
+                    // Create detailed error message
+                    gitError = `Git error: ${errorMessage}`;
+                    if (errorStderr) {
+                        gitError += `\nDetails: ${errorStderr.substring(0, 200)}`;
+                    }
+                    // Don't fail the request, just log the error
                 }
-                // Don't fail the request, just log the error
             }
         } else {
             console.log('ℹ️ GIT_AUTO_PUSH is not enabled (GIT_AUTO_PUSH=' + process.env.GIT_AUTO_PUSH + ')');
