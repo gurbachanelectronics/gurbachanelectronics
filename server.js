@@ -402,51 +402,80 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
         let gitError = null;
         
         if (process.env.GIT_AUTO_PUSH === 'true') {
+            console.log('🔄 GIT_AUTO_PUSH is enabled, attempting to commit and push...');
             try {
                 // Configure Git if needed
                 const gitUser = process.env.GIT_USER_NAME || 'GES Bot';
                 const gitEmail = process.env.GIT_USER_EMAIL || 'ges-bot@noreply.com';
                 
+                console.log(`📝 Configuring Git: ${gitUser} <${gitEmail}>`);
                 // Set Git config (non-blocking if already set)
                 try {
                     await execPromise(`git config user.name "${gitUser}"`, { cwd: __dirname });
                     await execPromise(`git config user.email "${gitEmail}"`, { cwd: __dirname });
                 } catch (e) {
-                    // Config might already be set, that's okay
+                    console.log('ℹ️ Git config already set or failed:', e.message);
                 }
                 
                 // Check if there are changes
+                console.log('🔍 Checking for changes...');
                 const { stdout: gitStatus } = await execPromise('git status --porcelain', { cwd: __dirname });
+                console.log('📊 Git status:', gitStatus || '(no changes)');
                 
                 if (gitStatus.includes('script.js') || gitStatus.includes('products_data.json')) {
+                    console.log('📦 Staging files...');
                     // Add only the specific files
                     await execPromise('git add script.js products_data.json', { cwd: __dirname });
                     
                     // Commit
                     const commitMessage = `Regenerated: ${products.length} products, ${products.reduce((sum, p) => sum + p.images.length, 0)} images`;
+                    console.log(`💾 Committing: ${commitMessage}`);
                     await execPromise(`git commit -m "${commitMessage}"`, { cwd: __dirname });
                     
                     // Push to GitHub
-                    // Use HTTPS with token if GIT_TOKEN is set, otherwise use SSH
+                    console.log('🚀 Pushing to GitHub...');
                     if (process.env.GIT_TOKEN) {
                         // Use token for authentication
                         const repoUrl = process.env.GIT_REPO_URL || 'https://github.com/gurbachanelectronics/gurbachanelectronics.git';
                         const repoUrlWithToken = repoUrl.replace('https://', `https://${process.env.GIT_TOKEN}@`);
-                        await execPromise(`git push ${repoUrlWithToken} main`, { cwd: __dirname });
+                        console.log(`🔐 Using token authentication to push to ${repoUrl}`);
+                        const { stdout: pushOutput, stderr: pushError } = await execPromise(`git push ${repoUrlWithToken} main`, { cwd: __dirname });
+                        if (pushOutput) console.log('📤 Push output:', pushOutput);
+                        if (pushError) console.log('📤 Push stderr:', pushError);
                     } else {
                         // Try SSH or default push
-                        await execPromise('git push origin main', { cwd: __dirname });
+                        console.log('🔐 Using default push (SSH or origin)');
+                        const { stdout: pushOutput, stderr: pushError } = await execPromise('git push origin main', { cwd: __dirname });
+                        if (pushOutput) console.log('📤 Push output:', pushOutput);
+                        if (pushError) console.log('📤 Push stderr:', pushError);
                     }
                     
                     gitPushed = true;
-                    console.log('✅ Changes committed and pushed to GitHub');
+                    console.log('✅ Changes committed and pushed to GitHub successfully!');
                 } else {
-                    console.log('ℹ️ No changes to commit');
+                    console.log('ℹ️ No changes detected in script.js or products_data.json');
+                    gitError = 'No changes detected to commit';
                 }
-            } catch (gitError) {
-                console.error('Git push error:', gitError.message);
-                gitError = gitError.message;
+            } catch (gitErr) {
+                const errorMessage = gitErr.message || gitErr.toString();
+                const errorStdout = gitErr.stdout || '';
+                const errorStderr = gitErr.stderr || '';
+                
+                console.error('❌ Git push error:', errorMessage);
+                if (errorStdout) console.error('📤 Git stdout:', errorStdout);
+                if (errorStderr) console.error('📤 Git stderr:', errorStderr);
+                
+                // Create detailed error message
+                gitError = `Git error: ${errorMessage}`;
+                if (errorStderr) {
+                    gitError += `\nDetails: ${errorStderr.substring(0, 200)}`;
+                }
                 // Don't fail the request, just log the error
+            }
+        } else {
+            console.log('ℹ️ GIT_AUTO_PUSH is not enabled (GIT_AUTO_PUSH=' + process.env.GIT_AUTO_PUSH + ')');
+            if (isRender) {
+                gitError = 'GIT_AUTO_PUSH is not set to "true". Set GIT_AUTO_PUSH=true and GIT_TOKEN in Render environment variables.';
             }
         }
         

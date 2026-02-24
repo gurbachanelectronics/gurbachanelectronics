@@ -626,11 +626,32 @@ async function regenerateWebsite() {
         const data = await response.json();
         
         if (response.ok) {
-            showNotification(`Website regenerated! ${data.productCount} products, ${data.imageCount} images`, 'success');
+            let message = `Website regenerated! ${data.productCount} products, ${data.imageCount} images`;
+            
+            // Show Git push status
+            if (data.gitPushed) {
+                message += '\n✅ Changes pushed to GitHub successfully!';
+            } else if (data.gitError) {
+                message += `\n⚠️ Git push failed: ${data.gitError}`;
+                message += '\n💡 Check Render logs or environment variables (GIT_AUTO_PUSH, GIT_TOKEN)';
+            } else if (data.isEphemeral) {
+                message += '\n⚠️ Changes are temporary (not pushed to GitHub)';
+                message += '\n💡 Enable GIT_AUTO_PUSH=true and GIT_TOKEN in Render environment variables';
+            }
+            
+            // Show note if provided
+            if (data.note) {
+                message += `\n\n${data.note}`;
+            }
+            
+            showNotification(message, data.gitPushed ? 'success' : (data.gitError ? 'error' : 'warning'));
             loadCategories();
+        } else {
+            showNotification(`Error: ${data.error || 'Failed to regenerate website'}`, 'error');
         }
     } catch (error) {
-        showNotification('Error regenerating website', 'error');
+        console.error('Regenerate error:', error);
+        showNotification('Error regenerating website: ' + error.message, 'error');
     } finally {
         hideLoading();
     }
