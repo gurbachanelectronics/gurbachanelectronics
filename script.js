@@ -1,4 +1,4 @@
-// ===== Complete Product Data - 42 Products =====
+// ===== Complete Product Data - 41 Products =====
 const products = [
     {
         "id": 1,
@@ -293,19 +293,6 @@ const products = [
     },
     {
         "id": 13,
-        "name": "Lmao",
-        "category": "monitors",
-        "description": "Professional Lmao - High quality audio equipment",
-        "specs": [
-            "Professional",
-            "High Quality"
-        ],
-        "images": [
-            "catalouge/products/TEST_!2/LMAO/IMG-1772003706977-866.png"
-        ]
-    },
-    {
-        "id": 14,
         "name": "HDL 20 Line Array",
         "category": "line-arrays",
         "description": "Professional HDL 20 Line Array - High quality audio equipment",
@@ -328,7 +315,7 @@ const products = [
         ]
     },
     {
-        "id": 15,
+        "id": 14,
         "name": "KARA K10 Line Array",
         "category": "line-arrays",
         "description": "Professional KARA K10 Line Array - High quality audio equipment",
@@ -352,7 +339,7 @@ const products = [
         ]
     },
     {
-        "id": 16,
+        "id": 15,
         "name": "V8 Line Array",
         "category": "line-arrays",
         "description": "Professional V8 Line Array - High quality audio equipment",
@@ -399,7 +386,7 @@ const products = [
         ]
     },
     {
-        "id": 17,
+        "id": 16,
         "name": "D&B J8 Line Array",
         "category": "line-arrays",
         "description": "Professional D&B J8 Line Array - High quality audio equipment",
@@ -424,7 +411,7 @@ const products = [
         ]
     },
     {
-        "id": 18,
+        "id": 17,
         "name": "VT 4888 Line Array",
         "category": "line-arrays",
         "description": "Professional VT 4888 Line Array - High quality audio equipment",
@@ -453,7 +440,7 @@ const products = [
         ]
     },
     {
-        "id": 19,
+        "id": 18,
         "name": "OHM Dual 15\" Top",
         "category": "tops",
         "description": "Professional OHM Dual 15\" Top - High quality audio equipment",
@@ -480,7 +467,7 @@ const products = [
         ]
     },
     {
-        "id": 20,
+        "id": 19,
         "name": "SRX 725 Top",
         "category": "tops",
         "description": "Professional SRX 725 Top - High quality audio equipment",
@@ -497,7 +484,7 @@ const products = [
         ]
     },
     {
-        "id": 21,
+        "id": 20,
         "name": "STX 825 Top",
         "category": "tops",
         "description": "Professional STX 825 Top - High quality audio equipment",
@@ -525,7 +512,7 @@ const products = [
         ]
     },
     {
-        "id": 22,
+        "id": 21,
         "name": "V45 Top",
         "category": "tops",
         "description": "Professional V45 Top - High quality audio equipment",
@@ -548,7 +535,7 @@ const products = [
         ]
     },
     {
-        "id": 23,
+        "id": 22,
         "name": "8006 Dual 18\" Bass",
         "category": "subwoofers",
         "description": "Professional 8006 Dual 18\" Bass - High quality audio equipment",
@@ -570,7 +557,7 @@ const products = [
         ]
     },
     {
-        "id": 24,
+        "id": 23,
         "name": "D&B B22 Bass",
         "category": "subwoofers",
         "description": "Professional D&B B22 Bass - High quality audio equipment",
@@ -591,7 +578,7 @@ const products = [
         ]
     },
     {
-        "id": 25,
+        "id": 24,
         "name": "OHM Dual 18\" Bass",
         "category": "subwoofers",
         "description": "Professional OHM Dual 18\" Bass - High quality audio equipment",
@@ -613,7 +600,7 @@ const products = [
         ]
     },
     {
-        "id": 26,
+        "id": 25,
         "name": "POPE Dual 18\" Bass",
         "category": "subwoofers",
         "description": "Professional POPE Dual 18\" Bass - High quality audio equipment",
@@ -650,7 +637,7 @@ const products = [
         ]
     },
     {
-        "id": 27,
+        "id": 26,
         "name": "SRX 728 Bass",
         "category": "subwoofers",
         "description": "Professional SRX 728 Bass - High quality audio equipment",
@@ -669,7 +656,7 @@ const products = [
         ]
     },
     {
-        "id": 28,
+        "id": 27,
         "name": "STX 828 Bass",
         "category": "subwoofers",
         "description": "Professional STX 828 Bass - High quality audio equipment",
@@ -706,7 +693,7 @@ const products = [
         ]
     },
     {
-        "id": 29,
+        "id": 28,
         "name": "VMAX 218 Subwoofer",
         "category": "subwoofers",
         "description": "Professional VMAX 218 Subwoofer - High quality audio equipment",
@@ -742,7 +729,7 @@ const products = [
         ]
     },
     {
-        "id": 30,
+        "id": 29,
         "name": "VT 4880 Dual 18\" Bass",
         "category": "subwoofers",
         "description": "Professional VT 4880 Dual 18\" Bass - High quality audio equipment",
@@ -762,7 +749,7 @@ const products = [
         ]
     },
     {
-        "id": 31,
+        "id": 30,
         "name": "Dual 8 Cora Line Array",
         "category": "line-arrays",
         "description": "Professional Dual 8 Cora Line Array - High quality audio equipment",
@@ -780,7 +767,7 @@ const products = [
         ]
     },
     {
-        "id": 32,
+        "id": 31,
         "name": "Nexo 10\" Stage Monitor",
         "category": "monitors",
         "description": "Professional Nexo 10\" Stage Monitor - High quality audio equipment",
@@ -801,7 +788,7 @@ const products = [
         ]
     },
     {
-        "id": 33,
+        "id": 32,
         "name": "OHM TRS 112H",
         "category": "tops",
         "description": "Professional OHM TRS 112H - High quality audio equipment",
@@ -822,7 +809,7 @@ const products = [
         ]
     },
     {
-        "id": 34,
+        "id": 33,
         "name": "OHM TRS 212",
         "category": "tops",
         "description": "Professional OHM TRS 212 - High quality audio equipment",
@@ -850,7 +837,7 @@ const products = [
         ]
     },
     {
-        "id": 35,
+        "id": 34,
         "name": "8004 Single 18\" Bass",
         "category": "subwoofers",
         "description": "Professional 8004 Single 18\" Bass - High quality audio equipment",
@@ -879,7 +866,7 @@ const products = [
         ]
     },
     {
-        "id": 36,
+        "id": 35,
         "name": "Martin Single 18\" Bass",
         "category": "subwoofers",
         "description": "Professional Martin Single 18\" Bass - High quality audio equipment",
@@ -898,7 +885,7 @@ const products = [
         ]
     },
     {
-        "id": 37,
+        "id": 36,
         "name": "POPE LD18 Single 18\"",
         "category": "subwoofers",
         "description": "Professional POPE LD18 Single 18\" - High quality audio equipment",
@@ -925,7 +912,7 @@ const products = [
         ]
     },
     {
-        "id": 38,
+        "id": 37,
         "name": "SRX 718 Single Bass",
         "category": "subwoofers",
         "description": "Professional SRX 718 Single Bass - High quality audio equipment",
@@ -939,7 +926,7 @@ const products = [
         ]
     },
     {
-        "id": 39,
+        "id": 38,
         "name": "STX 818 Single 18\" Bass",
         "category": "subwoofers",
         "description": "Professional STX 818 Single 18\" Bass - High quality audio equipment",
@@ -956,7 +943,7 @@ const products = [
         ]
     },
     {
-        "id": 40,
+        "id": 39,
         "name": "8018 Single 18\" Sub",
         "category": "subwoofers",
         "description": "Professional 8018 Single 18\" Sub - High quality audio equipment",
@@ -977,7 +964,7 @@ const products = [
         ]
     },
     {
-        "id": 41,
+        "id": 40,
         "name": "T24 Mid High",
         "category": "tops",
         "description": "Professional T24 Mid High - High quality audio equipment",
@@ -1002,7 +989,7 @@ const products = [
         ]
     },
     {
-        "id": 42,
+        "id": 41,
         "name": "VRX 932 Line Array",
         "category": "line-arrays",
         "description": "Professional VRX 932 Line Array - High quality audio equipment",
