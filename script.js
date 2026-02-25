@@ -1,4 +1,4 @@
-// ===== Complete Product Data - 42 Products =====
+// ===== Complete Product Data - 41 Products =====
 const products = [
     {
         "id": 1,
@@ -990,19 +990,6 @@ const products = [
     },
     {
         "id": 41,
-        "name": "Ss",
-        "category": "monitors",
-        "description": "Professional Ss - High quality audio equipment",
-        "specs": [
-            "Professional",
-            "High Quality"
-        ],
-        "images": [
-            "catalouge/products/test/ss/IMG-1771912611697-114.png"
-        ]
-    },
-    {
-        "id": 42,
         "name": "VRX 932 Line Array",
         "category": "line-arrays",
         "description": "Professional VRX 932 Line Array - High quality audio equipment",
