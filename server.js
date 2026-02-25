@@ -404,6 +404,48 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
         if (process.env.GIT_AUTO_PUSH === 'true') {
             console.log('🔄 GIT_AUTO_PUSH is enabled, attempting to commit and push...');
             try {
+                // First, verify Git repository exists and is initialized
+                const gitDir = path.join(__dirname, '.git');
+                if (!fsSync.existsSync(gitDir)) {
+                    throw new Error('Git repository not found. On Render, ensure the repository is properly cloned during deployment.');
+                }
+                
+                // Check if remote is configured, set it if not
+                let remoteConfigured = false;
+                try {
+                    const { stdout: remoteUrl } = await execPromise('git config --get remote.origin.url', { cwd: __dirname });
+                    const remote = remoteUrl.trim();
+                    if (remote) {
+                        console.log(`🔗 Git remote: ${remote}`);
+                        remoteConfigured = true;
+                    }
+                } catch (e) {
+                    console.log('⚠️ Git remote not configured');
+                }
+                
+                // If remote not configured and we have a repo URL, set it
+                if (!remoteConfigured) {
+                    const repoUrl = process.env.GIT_REPO_URL || 'https://github.com/gurbachanelectronics/gurbachanelectronics.git';
+                    try {
+                        await execPromise(`git remote add origin ${repoUrl}`, { cwd: __dirname });
+                        console.log(`✅ Configured Git remote: ${repoUrl}`);
+                        remoteConfigured = true;
+                    } catch (e) {
+                        if (e.message.includes('already exists')) {
+                            // Remote exists but might be wrong, try to set URL
+                            try {
+                                await execPromise(`git remote set-url origin ${repoUrl}`, { cwd: __dirname });
+                                console.log(`✅ Updated Git remote: ${repoUrl}`);
+                                remoteConfigured = true;
+                            } catch (e2) {
+                                console.log('⚠️ Could not configure remote:', e2.message);
+                            }
+                        } else {
+                            console.log('⚠️ Could not add remote:', e.message);
+                        }
+                    }
+                }
+                
                 // Configure Git if needed
                 const gitUser = process.env.GIT_USER_NAME || 'GES Bot';
                 const gitEmail = process.env.GIT_USER_EMAIL || 'ges-bot@noreply.com';
@@ -515,6 +557,25 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
                 
                 // Only commit if there are actual changes
                 if (hasStagedChanges) {
+                    // Ensure we're on the main branch
+                    try {
+                        const { stdout: currentBranch } = await execPromise('git rev-parse --abbrev-ref HEAD', { cwd: __dirname });
+                        const branch = currentBranch.trim();
+                        console.log(`🌿 Current branch: ${branch}`);
+                        
+                        if (branch !== 'main' && branch !== 'master') {
+                            console.log(`⚠️ Not on main branch (${branch}), checking out main...`);
+                            try {
+                                await execPromise('git checkout -b main 2>/dev/null || git checkout main', { cwd: __dirname });
+                                console.log('✅ Switched to main branch');
+                            } catch (checkoutError) {
+                                console.log('⚠️ Could not switch to main branch:', checkoutError.message);
+                            }
+                        }
+                    } catch (branchError) {
+                        console.log('⚠️ Could not determine current branch:', branchError.message);
+                    }
+                    
                     let commitMessage = `Regenerated: ${products.length} products, ${products.reduce((sum, p) => sum + p.images.length, 0)} images`;
                     if (hasImageChanges) {
                         commitMessage += ' (includes image updates)';
@@ -536,24 +597,109 @@ app.post('/api/admin/regenerate', isAuthenticated, async (req, res) => {
                     
                     // Push to GitHub
                     console.log('🚀 Pushing to GitHub...');
+                    let pushSucceeded = false;
+                    
                     if (process.env.GIT_TOKEN) {
                         // Use token for authentication
                         const repoUrl = process.env.GIT_REPO_URL || 'https://github.com/gurbachanelectronics/gurbachanelectronics.git';
                         const repoUrlWithToken = repoUrl.replace('https://', `https://${process.env.GIT_TOKEN}@`);
                         console.log(`🔐 Using token authentication to push to ${repoUrl}`);
-                        const { stdout: pushOutput, stderr: pushError } = await execPromise(`git push ${repoUrlWithToken} main`, { cwd: __dirname });
-                        if (pushOutput) console.log('📤 Push output:', pushOutput);
-                        if (pushError) console.log('📤 Push stderr:', pushError);
+                        
+                        try {
+                            const { stdout: pushOutput, stderr: pushError } = await execPromise(`git push ${repoUrlWithToken} main`, { 
+                                cwd: __dirname,
+                                timeout: 30000 // 30 second timeout
+                            });
+                            
+                            if (pushOutput) console.log('📤 Push output:', pushOutput);
+                            if (pushError && !pushError.includes('To https://')) {
+                                // Git push writes to stderr even on success, but check for actual errors
+                                console.log('📤 Push stderr:', pushError);
+                            }
+                            
+                            // Verify push succeeded by checking git status
+                            try {
+                                // Wait a moment for remote to update
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                
+                                const { stdout: status } = await execPromise('git status -sb', { cwd: __dirname });
+                                console.log('📊 Git status after push:', status);
+                                
+                                if (status.includes('ahead')) {
+                                    console.log('⚠️ Still ahead of remote - push may have failed');
+                                    throw new Error('Push verification failed - still ahead of remote');
+                                } else if (status.includes('up to date') || status.includes('behind') || !status.includes('ahead')) {
+                                    pushSucceeded = true;
+                                    console.log('✅ Push verified: repository is up to date');
+                                } else {
+                                    // If status doesn't show "ahead", assume push succeeded
+                                    pushSucceeded = true;
+                                    console.log('✅ Push completed (status check passed)');
+                                }
+                            } catch (verifyError) {
+                                // If verification fails, check if push output indicates success
+                                if (pushError && (pushError.includes('To https://') || pushError.includes('main -> main'))) {
+                                    pushSucceeded = true;
+                                    console.log('✅ Push completed (verified by output)');
+                                } else {
+                                    throw verifyError;
+                                }
+                            }
+                        } catch (pushErr) {
+                            throw new Error(`Push failed: ${pushErr.message}`);
+                        }
                     } else {
                         // Try SSH or default push
                         console.log('🔐 Using default push (SSH or origin)');
-                        const { stdout: pushOutput, stderr: pushError } = await execPromise('git push origin main', { cwd: __dirname });
-                        if (pushOutput) console.log('📤 Push output:', pushOutput);
-                        if (pushError) console.log('📤 Push stderr:', pushError);
+                        try {
+                            const { stdout: pushOutput, stderr: pushError } = await execPromise('git push origin main', { 
+                                cwd: __dirname,
+                                timeout: 30000
+                            });
+                            
+                            if (pushOutput) console.log('📤 Push output:', pushOutput);
+                            if (pushError && !pushError.includes('To ')) {
+                                console.log('📤 Push stderr:', pushError);
+                            }
+                            
+                            // Verify push succeeded
+                            try {
+                                // Wait a moment for remote to update
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                
+                                const { stdout: status } = await execPromise('git status -sb', { cwd: __dirname });
+                                console.log('📊 Git status after push:', status);
+                                
+                                if (status.includes('ahead')) {
+                                    console.log('⚠️ Still ahead of remote - push may have failed');
+                                    throw new Error('Push verification failed - still ahead of remote');
+                                } else if (status.includes('up to date') || status.includes('behind') || !status.includes('ahead')) {
+                                    pushSucceeded = true;
+                                    console.log('✅ Push verified: repository is up to date');
+                                } else {
+                                    pushSucceeded = true;
+                                    console.log('✅ Push completed (status check passed)');
+                                }
+                            } catch (verifyError) {
+                                // If verification fails, check if push output indicates success
+                                if (pushError && (pushError.includes('To ') || pushError.includes('main -> main'))) {
+                                    pushSucceeded = true;
+                                    console.log('✅ Push completed (verified by output)');
+                                } else {
+                                    throw verifyError;
+                                }
+                            }
+                        } catch (pushErr) {
+                            throw new Error(`Push failed: ${pushErr.message}`);
+                        }
                     }
                     
-                    gitPushed = true;
-                    console.log('✅ Changes committed and pushed to GitHub successfully!');
+                    if (pushSucceeded) {
+                        gitPushed = true;
+                        console.log('✅ Changes committed and pushed to GitHub successfully!');
+                    } else {
+                        throw new Error('Push verification failed');
+                    }
             } catch (gitErr) {
                 // Handle "no changes" error gracefully
                 if (gitErr.message === 'NO_CHANGES') {
